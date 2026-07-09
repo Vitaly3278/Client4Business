@@ -1,15 +1,19 @@
 # approval-service
 
-Простой backend-сервис для согласования контента перед публикацией.
+Сервис для согласования контента перед публикацией.
 
-Что умеет сервис:
+## Что делает сервис
 
-- создать заявку на согласование;
-- получить список заявок в workspace;
-- получить одну заявку по `id`;
-- принять решение: `approve`, `reject` или `cancel`.
+- Создает заявку на согласование.
+- Возвращает список заявок в workspace.
+- Возвращает одну заявку по `request_id`.
+- Принимает финальное решение: `approve`, `reject`, `cancel`.
 
-## Быстрый старт (локально)
+## Screen
+
+![Service screen](./screen.png)
+
+## Быстрый старт
 
 Требования: Python 3.12+.
 
@@ -21,7 +25,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-После запуска сервис доступен по адресу: `http://127.0.0.1:8000`.
+Сервис поднимется на `http://127.0.0.1:8000`.
 
 Проверка:
 
@@ -30,36 +34,47 @@ curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/ready
 ```
 
-## Запуск в Docker
+## Запуск через Docker
 
 ```bash
 docker compose up --build
 ```
 
-Сервис будет доступен на `http://localhost:8000`.
+Сервис: `http://localhost:8000`.
 
-## Заглушка авторизации (обязательно)
+## Авторизация (stub)
 
-Для всех бизнес-методов (`/api/v1/...`) нужно передавать заголовки:
+Для всех `api/v1` методов обязательны заголовки:
 
-- `X-Auth-Workspace-Id` - workspace пользователя;
-- `X-Auth-User-Id` - id пользователя;
+- `X-Auth-Workspace-Id` - workspace пользователя.
+- `X-Auth-User-Id` - id пользователя.
 - `X-Auth-Actions` - права через запятую.
 
-Поддерживаемые права:
+Права:
 
-- `approval:read` - чтение заявок;
-- `approval:create` - создание заявки;
-- `approval:decide` - `approve`/`reject`;
-- `approval:cancel` - `cancel`.
+- `approval:read` - чтение.
+- `approval:create` - создание.
+- `approval:decide` - approve/reject.
+- `approval:cancel` - cancel.
 
-Для `create` можно передать:
+Дополнительно для создания:
 
-- `X-Idempotency-Key` - ключ идемпотентности (повтор с тем же телом вернет ту же заявку, без дубля).
+- `X-Idempotency-Key` - защита от дублей при повторном запросе.
+
+## Основные endpoint'ы
+
+- `GET /health`
+- `GET /ready`
+- `POST /api/v1/workspaces/{workspace_id}/approval-requests`
+- `GET /api/v1/workspaces/{workspace_id}/approval-requests`
+- `GET /api/v1/workspaces/{workspace_id}/approval-requests/{request_id}`
+- `POST /api/v1/workspaces/{workspace_id}/approval-requests/{request_id}/approve`
+- `POST /api/v1/workspaces/{workspace_id}/approval-requests/{request_id}/reject`
+- `POST /api/v1/workspaces/{workspace_id}/approval-requests/{request_id}/cancel`
 
 ## Примеры запросов
 
-### 1) Создать заявку
+Создание:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/workspaces/ws_1/approval-requests" \
@@ -77,7 +92,7 @@ curl -X POST "http://127.0.0.1:8000/api/v1/workspaces/ws_1/approval-requests" \
   }'
 ```
 
-### 2) Получить список заявок
+Список:
 
 ```bash
 curl "http://127.0.0.1:8000/api/v1/workspaces/ws_1/approval-requests" \
@@ -86,7 +101,7 @@ curl "http://127.0.0.1:8000/api/v1/workspaces/ws_1/approval-requests" \
   -H "X-Auth-Actions: approval:read"
 ```
 
-### 3) Подтвердить заявку
+Approve:
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/v1/workspaces/ws_1/approval-requests/<request_id>/approve" \
@@ -103,9 +118,9 @@ curl -X POST "http://127.0.0.1:8000/api/v1/workspaces/ws_1/approval-requests/<re
 pytest
 ```
 
-## Коротко про поведение
+## Поведение и ограничения
 
-- Данные строго изолированы по `workspace_id`.
-- Повторный `create` с тем же `X-Idempotency-Key` не создает дубликат.
-- После финального статуса (`approved`/`rejected`/`canceled`) изменить решение нельзя.
-- Каждое успешное изменение пишется в аудит и в outbox-события.
+- Изоляция по `workspace_id`.
+- Идемпотентное создание по `X-Idempotency-Key`.
+- Финальное решение нельзя поменять.
+- Каждое успешное действие пишется в аудит и outbox.
