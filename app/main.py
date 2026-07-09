@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, Header, status
+from fastapi import Depends, FastAPI, Header, Response, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -36,6 +36,7 @@ def ready(session: Session = Depends(get_session)) -> dict[str, str]:
 def create_approval_request(
     workspace_id: str,
     payload: CreateApprovalRequestBody,
+    response: Response,
     session: Session = Depends(get_session),
     auth: AuthContext = Depends(require_action("approval:create")),
     x_idempotency_key: str | None = Header(default=None, alias="X-Idempotency-Key"),
@@ -49,6 +50,7 @@ def create_approval_request(
     )
     if not created:
         # The client retried the same create request, so we return the existing record.
+        response.status_code = status.HTTP_200_OK
         return ApprovalRequestResponse(**to_response_model(request))
     return ApprovalRequestResponse(**to_response_model(request))
 

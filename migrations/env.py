@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from logging.config import fileConfig
+from pathlib import Path
+import sys
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+# Ensure project root is importable for Alembic CLI invocations.
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.database import Base
 from app import models  # noqa: F401
